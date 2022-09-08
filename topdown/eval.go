@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"os"
 
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/metrics"
@@ -271,6 +272,9 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string, target *ast.Ref) {
 		}) // cannot return error
 
 		ast.WalkTerms(x, func(term *ast.Term) bool {
+    		if term.Location != nil {
+        		fmt.Fprintf(os.Stderr, "WalkTerms: %s\n", term.Location.File)
+    		}
 			if v, ok := term.Value.(ast.Var); ok {
 				if _, ok := evt.LocalMetadata[v]; !ok {
 					if rewritten, ok := e.rewrittenVar(v); ok {
@@ -284,6 +288,13 @@ func (e *eval) traceEvent(op Op, x ast.Node, msg string, target *ast.Ref) {
 			return false
 		})
 	}
+
+	ast.WalkTerms(x, func(term *ast.Term) bool {
+		if term.Location != nil {
+    		fmt.Fprintf(os.Stderr, "New WalkTerms: %s\n", term.Location.File)
+		}
+		return false
+	})
 
 	for i := range e.tracers {
 		e.tracers[i].TraceEvent(evt)
@@ -342,10 +353,22 @@ func (e *eval) evalStep(iter evalIterator) error {
 		return e.evalNot(iter)
 	}
 
+	ast.WalkTerms(expr, func(term *ast.Term) bool {
+		if term.Location != nil {
+    		fmt.Fprintf(os.Stderr, "expr WalkTerms: %s\n", term.Location.File)
+		}
+		return false
+	})
+
 	var defined bool
 	var err error
 	switch terms := expr.Terms.(type) {
 	case []*ast.Term:
+    	for _, t := range terms {
+    		if t.Location != nil {
+        		fmt.Fprintf(os.Stderr, "[]Term: %s\n", t.Location.File)
+    		}
+    	}
 		switch {
 		case expr.IsEquality():
 			err = e.unify(terms[1], terms[2], func() error {
@@ -364,6 +387,10 @@ func (e *eval) evalStep(iter evalIterator) error {
 		}
 	case *ast.Term:
 		rterm := e.generateVar(fmt.Sprintf("term_%d_%d", e.queryID, e.index))
+		if terms.Location != nil {
+    		fmt.Fprintf(os.Stderr, "%s\n", terms.Location.File)
+		}
+
 		err = e.unify(terms, rterm, func() error {
 			if e.saveSet.Contains(rterm, e.bindings) {
 				return e.saveExpr(ast.NewExpr(rterm), e.bindings, func() error {
@@ -2856,6 +2883,12 @@ type evalTerm struct {
 }
 
 func (e evalTerm) eval(iter unifyIterator) error {
+	if e.term.Location != nil {
+    	fmt.Fprintf(os.Stderr, "eval term: %s\n", e.term.Location.File)
+	}
+	if e.rterm.Location != nil {
+    	fmt.Fprintf(os.Stderr, "eval rterm: %s\n", e.rterm.Location.File)
+	}
 
 	if len(e.ref) == e.pos {
 		return e.e.biunify(e.term, e.rterm, e.termbindings, e.rbindings, iter)
@@ -2868,6 +2901,9 @@ func (e evalTerm) eval(iter unifyIterator) error {
 	plugged := e.bindings.Plug(e.ref[e.pos])
 
 	if plugged.IsGround() {
+    	if plugged.Location != nil {
+        	fmt.Fprintf(os.Stderr, "eval plugged: %s\n", plugged.Location.File)
+    	}
 		return e.next(iter, plugged)
 	}
 
@@ -2875,6 +2911,9 @@ func (e evalTerm) eval(iter unifyIterator) error {
 }
 
 func (e evalTerm) next(iter unifyIterator, plugged *ast.Term) error {
+	if plugged.Location != nil {
+    	fmt.Fprintf(os.Stderr, "next plugged: %s\n", plugged.Location.File)
+	}
 
 	term, bindings := e.get(plugged)
 	if term == nil {
