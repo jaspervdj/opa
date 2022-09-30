@@ -806,6 +806,10 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		Capabilities:           capabilities,
 	}
 
+	if e.traceEnabled {
+		e.traceEvent(BuiltinOp, bi.Expr(terms[1:]...), "", nil)
+	}
+
 	eval := evalBuiltin{
 		e:                e,
 		bi:               bi,
@@ -843,6 +847,7 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 		for _, tracer := range e.executionTracers {
 			tracer.Unify(a, b)
 		}
+		e.traceEvent(UnifyOp, ast.Equality.Expr(a, b), "", nil)
 	}
 	switch vA := a.Value.(type) {
 	case ast.Var, ast.Ref, *ast.ArrayComprehension, *ast.SetComprehension, *ast.ObjectComprehension:
@@ -1701,6 +1706,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 		for _, tracer := range e.executionTracers {
 			tracer.Builtin(e.bi, operands)
 		}
+		e.e.traceEvent(BuiltinOp, e.bi.Expr(operands...), "", nil)
 	}
 
 	e.e.instr.startTimer(evalOpBuiltinCall)
