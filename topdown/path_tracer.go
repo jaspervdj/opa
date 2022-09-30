@@ -30,23 +30,6 @@ func (t *DummyExecutionTracer) term(term *ast.Term) {
 	}
 }
 
-func (t *DummyExecutionTracer) Unify(l *ast.Term, r *ast.Term) {
-	fmt.Fprintf(os.Stderr, "DummyExecutionTracer: %s = %s\n", l.String(), r.String())
-	t.term(l)
-	t.term(r)
-}
-
-func (t *DummyExecutionTracer) Builtin(f *ast.Builtin, args []*ast.Term) {
-	strs := make([]string, len(args))
-	for i, arg := range args {
-		strs[i] = fmt.Sprintf("%v", arg)
-	}
-	fmt.Fprintf(os.Stderr, "DummyExecutionTracer: %s(%s)\n", f.Name, strings.Join(strs, ", "))
-	for _, arg := range args {
-		t.term(arg)
-	}
-}
-
 func (t *DummyExecutionTracer) Config() TraceConfig {
 	return TraceConfig{
 		PlugLocalVars: true,
