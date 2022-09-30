@@ -38,6 +38,7 @@ type Query struct {
 	input                  *ast.Term
 	external               *resolverTrie
 	tracers                []QueryTracer
+	executionTracer        ExecutionTracer
 	plugTraceVars          bool
 	unknowns               []*ast.Term
 	partialNamespace       string
@@ -140,6 +141,12 @@ func (q *Query) WithQueryTracer(tracer QueryTracer) *Query {
 		q.plugTraceVars = true
 	}
 
+	return q
+}
+
+func (q *Query) WithExecutionTracer(tracer ExecutionTracer) *Query {
+	q.executionTracer = tracer
+	q.plugTraceVars = true
 	return q
 }
 
@@ -313,7 +320,8 @@ func (q *Query) PartialRun(ctx context.Context) (partials []ast.Body, support []
 		input:                  q.input,
 		external:               q.external,
 		tracers:                q.tracers,
-		traceEnabled:           len(q.tracers) > 0,
+		executionTracer:        q.executionTracer,
+		traceEnabled:           len(q.tracers) > 0 || q.executionTracer != nil,
 		plugTraceVars:          q.plugTraceVars,
 		instr:                  q.instr,
 		builtins:               q.builtins,
@@ -463,7 +471,8 @@ func (q *Query) Iter(ctx context.Context, iter func(QueryResult) error) error {
 		input:                  q.input,
 		external:               q.external,
 		tracers:                q.tracers,
-		traceEnabled:           len(q.tracers) > 0,
+		executionTracer:        q.executionTracer,
+		traceEnabled:           len(q.tracers) > 0 || q.executionTracer != nil,
 		plugTraceVars:          q.plugTraceVars,
 		instr:                  q.instr,
 		builtins:               q.builtins,

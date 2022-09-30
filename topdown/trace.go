@@ -229,6 +229,11 @@ func (b *BufferTracer) Config() TraceConfig {
 	return TraceConfig{PlugLocalVars: true}
 }
 
+type ExecutionTracer interface {
+	Unify(*ast.Term, *ast.Term)
+	Builtin(*ast.Builtin, []*ast.Term)
+}
+
 // PrettyTrace pretty prints the trace to the writer.
 func PrettyTrace(w io.Writer, trace []*Event) {
 	depths := depths{}
