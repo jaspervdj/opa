@@ -58,6 +58,13 @@ const (
 	// WasmOp is emitted when resolving a ref using an external
 	// Resolver.
 	WasmOp Op = "Wasm"
+
+	// UnifyOp is emitted when two terms are unified. `args` will be set to an
+	// array with the left- and right-hand side resppectively.
+	UnifyOp Op = "Unify"
+
+	// BuiltinOp is emitted before evaluating a builtin function.
+	BuiltinOp Op = "Builtin"
 )
 
 // VarMetadata provides some user facing information about
