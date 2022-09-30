@@ -73,7 +73,6 @@ type eval struct {
 	external               *resolverTrie
 	targetStack            *refStack
 	tracers                []QueryTracer
-	executionTracers       []ExecutionTracer
 	traceEnabled           bool
 	plugTraceVars          bool
 	instr                  *Instrumentation
@@ -811,12 +810,11 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	eval := evalBuiltin{
-		e:                e,
-		bi:               bi,
-		bctx:             bctx,
-		f:                f,
-		terms:            terms[1:],
-		executionTracers: e.executionTracers,
+		e:     e,
+		bi:    bi,
+		bctx:  bctx,
+		f:     f,
+		terms: terms[1:],
 	}
 
 	return eval.eval(iter)
@@ -844,9 +842,6 @@ func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) err
 	a, b1 = b1.apply(a)
 	b, b2 = b2.apply(b)
 	if e.traceEnabled {
-		for _, tracer := range e.executionTracers {
-			tracer.Unify(a, b)
-		}
 		e.traceEvent(UnifyOp, ast.Equality.Expr(a, b), "", nil)
 	}
 	switch vA := a.Value.(type) {
@@ -1679,12 +1674,11 @@ func (e *eval) updateFromQuery(expr *ast.Expr) {
 }
 
 type evalBuiltin struct {
-	e                *eval
-	bi               *ast.Builtin
-	bctx             BuiltinContext
-	f                BuiltinFunc
-	terms            []*ast.Term
-	executionTracers []ExecutionTracer
+	e     *eval
+	bi    *ast.Builtin
+	bctx  BuiltinContext
+	f     BuiltinFunc
+	terms []*ast.Term
 }
 
 // Is this builtin non-deterministic, and did the caller provide an NDBCache?
@@ -1702,10 +1696,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 
 	numDeclArgs := len(e.bi.Decl.FuncArgs().Args)
 
-	if len(e.executionTracers) > 0 {
-		for _, tracer := range e.executionTracers {
-			tracer.Builtin(e.bi, operands)
-		}
+	if e.e.traceEnabled {
 		e.e.traceEvent(BuiltinOp, e.bi.Expr(operands...), "", nil)
 	}
 
