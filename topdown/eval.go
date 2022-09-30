@@ -1696,10 +1696,6 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 
 	numDeclArgs := len(e.bi.Decl.FuncArgs().Args)
 
-	if e.e.traceEnabled {
-		e.e.traceEvent(BuiltinOp, e.bi.Expr(operands...), "", nil)
-	}
-
 	e.e.instr.startTimer(evalOpBuiltinCall)
 	var err error
 
