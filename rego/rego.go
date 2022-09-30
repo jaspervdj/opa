@@ -109,7 +109,7 @@ type EvalContext struct {
 	instrumentation        *topdown.Instrumentation
 	partialNamespace       string
 	queryTracers           []topdown.QueryTracer
-	executionTracer        topdown.ExecutionTracer
+	executionTracers       []topdown.ExecutionTracer
 	compiledQuery          compiledQuery
 	unknowns               []string
 	disableInlining        []ast.Ref
@@ -184,9 +184,11 @@ func EvalQueryTracer(tracer topdown.QueryTracer) EvalOption {
 }
 
 func EvalExecutionTracer(tracer topdown.ExecutionTracer) EvalOption {
-    return func(e *EvalContext) {
-        e.executionTracer = tracer
-    }
+	return func(e *EvalContext) {
+		if tracer != nil {
+			e.executionTracers = append(e.executionTracers, tracer)
+		}
+	}
 }
 
 // EvalPartialNamespace returns an argument that sets the namespace to use for
@@ -1954,8 +1956,8 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 		q = q.WithQueryTracer(ectx.queryTracers[i])
 	}
 
-	if ectx.executionTracer != nil {
-		q = q.WithExecutionTracer(ectx.executionTracer)
+	for _, t := range ectx.executionTracers {
+		q = q.WithExecutionTracer(t)
 	}
 
 	if ectx.parsedInput != nil {

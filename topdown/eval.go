@@ -73,7 +73,7 @@ type eval struct {
 	external               *resolverTrie
 	targetStack            *refStack
 	tracers                []QueryTracer
-	executionTracer        ExecutionTracer
+	executionTracers       []ExecutionTracer
 	traceEnabled           bool
 	plugTraceVars          bool
 	instr                  *Instrumentation
@@ -807,12 +807,12 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	eval := evalBuiltin{
-		e:               e,
-		bi:              bi,
-		bctx:            bctx,
-		f:               f,
-		terms:           terms[1:],
-		executionTracer: e.executionTracer,
+		e:                e,
+		bi:               bi,
+		bctx:             bctx,
+		f:                f,
+		terms:            terms[1:],
+		executionTracers: e.executionTracers,
 	}
 
 	return eval.eval(iter)
@@ -839,8 +839,10 @@ func (e *eval) unify(a, b *ast.Term, iter unifyIterator) error {
 func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
 	a, b1 = b1.apply(a)
 	b, b2 = b2.apply(b)
-	if e.traceEnabled && e.executionTracer != nil {
-		e.executionTracer.Unify(a, b)
+	if e.traceEnabled {
+		for _, tracer := range e.executionTracers {
+			tracer.Unify(a, b)
+		}
 	}
 	switch vA := a.Value.(type) {
 	case ast.Var, ast.Ref, *ast.ArrayComprehension, *ast.SetComprehension, *ast.ObjectComprehension:
@@ -1672,12 +1674,12 @@ func (e *eval) updateFromQuery(expr *ast.Expr) {
 }
 
 type evalBuiltin struct {
-	e               *eval
-	bi              *ast.Builtin
-	bctx            BuiltinContext
-	f               BuiltinFunc
-	terms           []*ast.Term
-	executionTracer ExecutionTracer
+	e                *eval
+	bi               *ast.Builtin
+	bctx             BuiltinContext
+	f                BuiltinFunc
+	terms            []*ast.Term
+	executionTracers []ExecutionTracer
 }
 
 // Is this builtin non-deterministic, and did the caller provide an NDBCache?
@@ -1695,8 +1697,10 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 
 	numDeclArgs := len(e.bi.Decl.FuncArgs().Args)
 
-	if e.executionTracer != nil {
-		e.executionTracer.Builtin(e.bi, operands)
+	if len(e.executionTracers) > 0 {
+		for _, tracer := range e.executionTracers {
+			tracer.Builtin(e.bi, operands)
+		}
 	}
 
 	e.e.instr.startTimer(evalOpBuiltinCall)
