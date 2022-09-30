@@ -47,6 +47,48 @@ func (t *DummyExecutionTracer) Builtin(f *ast.Builtin, args []*ast.Term) {
 	}
 }
 
+func (t *DummyExecutionTracer) Config() TraceConfig {
+	return TraceConfig{
+		PlugLocalVars: true,
+	}
+}
+
+func (t *DummyExecutionTracer) Enabled() bool {
+	return true
+}
+
+func (t *DummyExecutionTracer) TraceEvent(event Event) {
+	if event.Op == UnifyOp {
+		if expr, ok := event.Node.(*ast.Expr); ok {
+			if terms, ok := expr.Terms.([]*ast.Term); ok && len(terms) == 3 {
+				fmt.Fprintf(os.Stderr, "TraceEvent: %s = %s\n", terms[1].String(), terms[2].String())
+				t.term(terms[1])
+				t.term(terms[2])
+			}
+		}
+	}
+	if event.Op == BuiltinOp {
+		if expr, ok := event.Node.(*ast.Expr); ok {
+			if terms, ok := expr.Terms.([]*ast.Term); ok {
+				operands := make([]*ast.Term, len(terms)-1)
+				for i, term := range terms[1:] {
+					operands[i] = event.Plug(term)
+				}
+
+				strs := make([]string, len(operands))
+				for i, term := range operands {
+					strs[i] = fmt.Sprintf(term.String())
+				}
+
+				fmt.Fprintf(os.Stderr, "TraceEvent: %s(%s)\n", terms[0].String(), strings.Join(strs, ", "))
+				for _, term := range operands {
+					t.term(term)
+				}
+			}
+		}
+	}
+}
+
 func (t *DummyExecutionTracer) DecorateValue(top ast.Value) error {
 	path := []interface{}{}
 	var decorateValue func(ast.Value) error

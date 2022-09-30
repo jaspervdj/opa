@@ -554,6 +554,7 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	executionTracer := topdown.NewDummyExecutionTracer()
 	evalArgs = append(evalArgs, rego.EvalExecutionTracer(executionTracer))
+	evalArgs = append(evalArgs, rego.EvalQueryTracer(executionTracer))
 
 	inputBytes, err := readInputBytes(params)
 	if err != nil {
