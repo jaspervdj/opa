@@ -109,6 +109,7 @@ type EvalContext struct {
 	instrumentation        *topdown.Instrumentation
 	partialNamespace       string
 	queryTracers           []topdown.QueryTracer
+	executionTracers       []topdown.ExecutionTracer
 	compiledQuery          compiledQuery
 	unknowns               []string
 	disableInlining        []ast.Ref
@@ -178,6 +179,14 @@ func EvalQueryTracer(tracer topdown.QueryTracer) EvalOption {
 	return func(e *EvalContext) {
 		if tracer != nil {
 			e.queryTracers = append(e.queryTracers, tracer)
+		}
+	}
+}
+
+func EvalExecutionTracer(tracer topdown.ExecutionTracer) EvalOption {
+	return func(e *EvalContext) {
+		if tracer != nil {
+			e.executionTracers = append(e.executionTracers, tracer)
 		}
 	}
 }
@@ -1945,6 +1954,10 @@ func (r *Rego) eval(ctx context.Context, ectx *EvalContext) (ResultSet, error) {
 
 	for i := range ectx.queryTracers {
 		q = q.WithQueryTracer(ectx.queryTracers[i])
+	}
+
+	for _, t := range ectx.executionTracers {
+		q = q.WithExecutionTracer(t)
 	}
 
 	if ectx.parsedInput != nil {
