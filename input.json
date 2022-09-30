@@ -1,0 +1,26 @@
+[
+  {
+    "enabled": true,
+    "description": "The description is unused.",
+    "ingress": {
+      "cidr": "0.0.0.0/0",
+      "port": 8000
+    }
+  },
+  {
+    "enabled": true,
+    "description": "This one is invalid.",
+    "ingress": {
+      "cidr": "0.0.0.0/0",
+      "port": 22
+    }
+  },
+  {
+    "enabled": false,
+    "description": "This one is disabled.",
+    "ingress": {
+      "cidr": "0.0.0.0/0",
+      "port": 22
+    }
+  }
+]

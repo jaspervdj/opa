@@ -400,6 +400,10 @@ func eval(args []string, params evalCommandParams, w io.Writer) (bool, error) {
 		return false, nil
 	}
 
+	for _, path := range ectx.executionTracer.Covered() {
+		fmt.Fprintf(os.Stderr, "Path covered: %v\n", path)
+	}
+
 	return true, nil
 }
 
@@ -469,13 +473,14 @@ func evalOnce(ctx context.Context, ectx *evalContext) pr.Output {
 }
 
 type evalContext struct {
-	params   evalCommandParams
-	metrics  metrics.Metrics
-	profiler *resettableProfiler
-	cover    *cover.Cover
-	tracer   *topdown.BufferTracer
-	regoArgs []func(*rego.Rego)
-	evalArgs []rego.EvalOption
+	params          evalCommandParams
+	metrics         metrics.Metrics
+	profiler        *resettableProfiler
+	cover           *cover.Cover
+	tracer          *topdown.BufferTracer
+	executionTracer *topdown.DummyExecutionTracer
+	regoArgs        []func(*rego.Rego)
+	evalArgs        []rego.EvalOption
 }
 
 func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
@@ -547,6 +552,9 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 
 	regoArgs = append(regoArgs, rego.Target(params.target.String()))
 
+	executionTracer := topdown.NewDummyExecutionTracer()
+	evalArgs = append(evalArgs, rego.EvalExecutionTracer(executionTracer))
+
 	inputBytes, err := readInputBytes(params)
 	if err != nil {
 		return nil, err
@@ -560,6 +568,9 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 		inputValue, err := ast.InterfaceToValue(input)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process input: %s", err.Error())
+		}
+		if err := executionTracer.DecorateValue(inputValue); err != nil {
+			return nil, fmt.Errorf("unable to decorate input: %s", err.Error())
 		}
 		regoArgs = append(regoArgs, rego.ParsedInput(inputValue))
 	}
@@ -625,13 +636,14 @@ func setupEval(args []string, params evalCommandParams) (*evalContext, error) {
 	}
 
 	evalCtx := &evalContext{
-		params:   params,
-		metrics:  m,
-		profiler: &rp,
-		cover:    c,
-		tracer:   tracer,
-		regoArgs: regoArgs,
-		evalArgs: evalArgs,
+		params:          params,
+		metrics:         m,
+		profiler:        &rp,
+		cover:           c,
+		tracer:          tracer,
+		regoArgs:        regoArgs,
+		evalArgs:        evalArgs,
+		executionTracer: executionTracer,
 	}
 
 	return evalCtx, nil
