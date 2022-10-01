@@ -111,7 +111,6 @@ Redo data.test.p = _
 	var buf bytes.Buffer
 	opts := NewPrettyTraceOpts()
 	delete(opts.Ops, UnifyOp)
-	delete(opts.Ops, BuiltinOp)
 	PrettyTraceWith(opts, &buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
@@ -175,7 +174,6 @@ query:3     | | Redo data.test.q[x]
 	opts := NewPrettyTraceOpts()
 	opts.Location = true
 	delete(opts.Ops, UnifyOp)
-	delete(opts.Ops, BuiltinOp)
 	PrettyTraceWith(opts, &buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
@@ -246,7 +244,6 @@ authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo da
 	opts := NewPrettyTraceOpts()
 	opts.Location = true
 	delete(opts.Ops, UnifyOp)
-	delete(opts.Ops, BuiltinOp)
 	PrettyTraceWith(opts, &buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
@@ -415,7 +412,6 @@ query:1                                                              | Fail data
 	opts := NewPrettyTraceOpts()
 	opts.Location = true
 	delete(opts.Ops, UnifyOp)
-	delete(opts.Ops, BuiltinOp)
 	PrettyTraceWith(opts, &buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
@@ -528,7 +524,6 @@ Redo data.test.p = _
 	var buf bytes.Buffer
 	opts := NewPrettyTraceOpts()
 	delete(opts.Ops, UnifyOp)
-	delete(opts.Ops, BuiltinOp)
 	PrettyTraceWith(opts, &buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
@@ -579,11 +574,8 @@ query:4     | | | Exit data.test.q
 query:4     | | Redo data.test.q
 query:4     | | | Redo x = data.a[_]
 query:3     | | Eval plus(x, 1, n)
-query:3     | | Builtin plus(x, 1, n)
 query:3     | | Eval sprintf("n=%v", [n], __local0__)
-query:3     | | Builtin sprintf("n=%v", [n], __local0__)
 query:3     | | Eval trace(__local0__)
-query:3     | | Builtin trace(__local0__)
 query:3     | | Note "n=2"
 query:3     | | Exit data.test.p early
 query:1     | Exit data.test.p = _
