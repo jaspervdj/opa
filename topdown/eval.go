@@ -805,12 +805,6 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 		Capabilities:           capabilities,
 	}
 
-	if e.traceEnabled {
-		expr := bi.Expr(terms[1:]...)
-		expr.Location = terms[0].Location
-		e.traceEvent(BuiltinOp, expr, "", nil)
-	}
-
 	eval := evalBuiltin{
 		e:     e,
 		bi:    bi,
