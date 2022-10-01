@@ -62,9 +62,6 @@ const (
 	// UnifyOp is emitted when two terms are unified. `args` will be set to an
 	// array with the left- and right-hand side resppectively.
 	UnifyOp Op = "Unify"
-
-	// BuiltinOp is emitted before evaluating a builtin function.
-	BuiltinOp Op = "Builtin"
 )
 
 // VarMetadata provides some user facing information about
@@ -271,7 +268,6 @@ func NewPrettyTraceOpts() PrettyTraceOpts {
 			IndexOp:     {},
 			WasmOp:      {},
 			UnifyOp:     {},
-			BuiltinOp:   {},
 		},
 	}
 }
