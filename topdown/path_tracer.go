@@ -44,28 +44,38 @@ func (t *DummyExecutionTracer) TraceEvent(event Event) {
 	if event.Op == UnifyOp {
 		if expr, ok := event.Node.(*ast.Expr); ok {
 			if terms, ok := expr.Terms.([]*ast.Term); ok && len(terms) == 3 {
-				fmt.Fprintf(os.Stderr, "TraceEvent: %s = %s\n", terms[1].String(), terms[2].String())
+				fmt.Fprintf(os.Stderr, "TraceUnify: %s = %s\n", terms[1].String(), terms[2].String())
 				t.term(terms[1])
 				t.term(terms[2])
 			}
 		}
 	}
-	if event.Op == BuiltinOp {
+	if event.Op == EvalOp {
 		if expr, ok := event.Node.(*ast.Expr); ok {
-			if terms, ok := expr.Terms.([]*ast.Term); ok {
-				operands := make([]*ast.Term, len(terms)-1)
-				for i, term := range terms[1:] {
-					operands[i] = event.Plug(term)
+			if terms, ok := expr.Terms.([]*ast.Term); ok && len(terms) > 0 {
+				if expr.IsEquality() {
+					lhs := event.Plug(terms[1])
+					rhs := event.Plug(terms[2])
+					fmt.Fprintf(os.Stderr, "TraceEquality: %s = %s\n", lhs.String(), rhs.String())
 				}
 
-				strs := make([]string, len(operands))
-				for i, term := range operands {
-					strs[i] = fmt.Sprintf(term.String())
-				}
+				if ref, ok := terms[0].Value.(ast.Ref); ok {
+					if _, ok := ast.BuiltinMap[ref.String()]; ok {
+						operands := make([]*ast.Term, len(terms)-1)
+						for i, term := range terms[1:] {
+							operands[i] = event.Plug(term)
+						}
 
-				fmt.Fprintf(os.Stderr, "TraceEvent: %s(%s)\n", terms[0].String(), strings.Join(strs, ", "))
-				for _, term := range operands {
-					t.term(term)
+						strs := make([]string, len(operands))
+						for i, term := range operands {
+							strs[i] = fmt.Sprintf(term.String())
+						}
+
+						fmt.Fprintf(os.Stderr, "TraceEval: %s(%s)\n", terms[0].String(), strings.Join(strs, ", "))
+						for _, term := range operands {
+							t.term(term)
+						}
+					}
 				}
 			}
 		}
