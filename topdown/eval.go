@@ -806,7 +806,9 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 	}
 
 	if e.traceEnabled {
-		e.traceEvent(BuiltinOp, bi.Expr(terms[1:]...), "", nil)
+		expr := bi.Expr(terms[1:]...)
+		expr.Location = terms[0].Location
+		e.traceEvent(BuiltinOp, expr, "", nil)
 	}
 
 	eval := evalBuiltin{
