@@ -32,7 +32,7 @@ func (t *DummyExecutionTracer) term(term *ast.Term) {
 
 func (t *DummyExecutionTracer) Config() TraceConfig {
 	return TraceConfig{
-		PlugLocalVars: true,
+		PlugLocalVars: false,
 	}
 }
 
@@ -45,8 +45,8 @@ func (t *DummyExecutionTracer) TraceEvent(event Event) {
 		if expr, ok := event.Node.(*ast.Expr); ok {
 			if terms, ok := expr.Terms.([]*ast.Term); ok && len(terms) == 3 {
 				fmt.Fprintf(os.Stderr, "TraceUnify: %s = %s\n", terms[1].String(), terms[2].String())
-				t.term(terms[1])
-				t.term(terms[2])
+				t.term(event.Plug(terms[1]))
+				t.term(event.Plug(terms[2]))
 			}
 		}
 	}
