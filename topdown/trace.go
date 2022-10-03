@@ -235,41 +235,18 @@ func (b *BufferTracer) Config() TraceConfig {
 
 // PrettyTrace pretty prints the trace to the writer.
 func PrettyTrace(w io.Writer, trace []*Event) {
-	PrettyTraceWith(NewPrettyTraceOpts(), w, trace)
+	PrettyTraceWith(PrettyTraceOpts{}, w, trace)
 }
 
 // PrettyTraceWithLocation prints the trace to the writer and includes location information
 func PrettyTraceWithLocation(w io.Writer, trace []*Event) {
-	opts := NewPrettyTraceOpts()
-	opts.Location = true
-	PrettyTraceWith(opts, w, trace)
+	PrettyTraceWith(PrettyTraceOpts{Location: true}, w, trace)
 }
 
 // Options for pretty-printing traces
 type PrettyTraceOpts struct {
-	Location bool            // Include locations
-	Ops      map[Op]struct{} // Event ops to include
-}
-
-// NewPrettyTraceOpts returns a default set of options, with all events
-// included and locations turned off.
-func NewPrettyTraceOpts() PrettyTraceOpts {
-	return PrettyTraceOpts{
-		Location: false,
-		Ops: map[Op]struct{}{
-			EnterOp:     {},
-			ExitOp:      {},
-			EvalOp:      {},
-			RedoOp:      {},
-			SaveOp:      {},
-			FailOp:      {},
-			DuplicateOp: {},
-			NoteOp:      {},
-			IndexOp:     {},
-			WasmOp:      {},
-			UnifyOp:     {},
-		},
-	}
+	Location bool // Include locations
+	UnifyOps bool // Include unify operations
 }
 
 func PrettyTraceWith(opts PrettyTraceOpts, w io.Writer, trace []*Event) {
@@ -281,7 +258,7 @@ func PrettyTraceWith(opts PrettyTraceOpts, w io.Writer, trace []*Event) {
 	locationWidth := longest + locationPadding
 
 	for _, event := range trace {
-		if _, ok := opts.Ops[event.Op]; !ok {
+		if event.Op == UnifyOp && !opts.UnifyOps {
 			continue
 		}
 
