@@ -59,8 +59,9 @@ const (
 	// Resolver.
 	WasmOp Op = "Wasm"
 
-	// UnifyOp is emitted when two terms are unified. `args` will be set to an
-	// array with the left- and right-hand side resppectively.
+	// UnifyOp is emitted when two terms are unified.  Node will be set to an
+	// equality expression with the two terms.  This Node will not have location
+	// info.
 	UnifyOp Op = "Unify"
 )
 
