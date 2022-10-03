@@ -109,9 +109,7 @@ Redo data.test.p = _
 `
 
 	var buf bytes.Buffer
-	opts := NewPrettyTraceOpts()
-	delete(opts.Ops, UnifyOp)
-	PrettyTraceWith(opts, &buf, *tracer)
+	PrettyTrace(&buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -171,10 +169,7 @@ query:3     | | Redo data.test.q[x]
 `
 
 	var buf bytes.Buffer
-	opts := NewPrettyTraceOpts()
-	opts.Location = true
-	delete(opts.Ops, UnifyOp)
-	PrettyTraceWith(opts, &buf, *tracer)
+	PrettyTraceWithLocation(&buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -241,10 +236,7 @@ authz_bundle/...ternal/authz/policies/abac/v1/beta/policy.rego:5     | | Redo da
 `
 
 	var buf bytes.Buffer
-	opts := NewPrettyTraceOpts()
-	opts.Location = true
-	delete(opts.Ops, UnifyOp)
-	PrettyTraceWith(opts, &buf, *tracer)
+	PrettyTraceWithLocation(&buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -409,10 +401,7 @@ query:1                                                              | Fail data
 `
 
 	var buf bytes.Buffer
-	opts := NewPrettyTraceOpts()
-	opts.Location = true
-	delete(opts.Ops, UnifyOp)
-	PrettyTraceWith(opts, &buf, *tracer)
+	PrettyTraceWithLocation(&buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -522,9 +511,7 @@ Redo data.test.p = _
 `
 
 	var buf bytes.Buffer
-	opts := NewPrettyTraceOpts()
-	delete(opts.Ops, UnifyOp)
-	PrettyTraceWith(opts, &buf, *tracer)
+	PrettyTrace(&buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -589,10 +576,7 @@ query:3     | | Redo data.test.q[x]
 `
 
 	var buf bytes.Buffer
-	opts := NewPrettyTraceOpts()
-	opts.Location = true
-	delete(opts.Ops, UnifyOp)
-	PrettyTraceWith(opts, &buf, *tracer)
+	PrettyTraceWithLocation(&buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
 
@@ -1255,9 +1239,51 @@ query:1      | Redo data.test = _
 `
 
 	var buf bytes.Buffer
-	opts := NewPrettyTraceOpts()
-	opts.Location = true
-	delete(opts.Ops, UnifyOp)
-	PrettyTraceWith(opts, &buf, *tracer)
+	PrettyTraceWithLocation(&buf, *tracer)
+	compareBuffers(t, expected, buf.String())
+}
+
+func TestPrettyTraceWithUnifyOps(t *testing.T) {
+	module := `package test
+
+	p[x] { x = 1 }`
+
+	ctx := context.Background()
+	compiler := compileModules([]string{module})
+	store := inmem.NewFromObject(nil)
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	tracer := NewBufferTracer()
+	query := NewQuery(ast.MustParseBody("data.test.p")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn).
+		WithTracer(tracer)
+
+	_, err := query.Run(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	expected := `query:1     Enter data.test.p
+query:1     | Eval data.test.p
+            | Unify data.test.p = _
+query:1     | Index data.test.p (matched 1 rule)
+query:3     | Enter data.test.p
+query:3     | | Eval x = 1
+            | | Unify x = 1
+query:3     | | Exit data.test.p
+query:3     | Redo data.test.p
+query:3     | | Redo x = 1
+            | Unify {1} = _
+query:1     | Exit data.test.p
+query:1     Redo data.test.p
+query:1     | Redo data.test.p
+`
+
+	var buf bytes.Buffer
+	prettyOpts := PrettyTraceOpts{Location: true, UnifyOps: true}
+	PrettyTraceWith(prettyOpts, &buf, *tracer)
 	compareBuffers(t, expected, buf.String())
 }
