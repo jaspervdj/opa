@@ -2117,7 +2117,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 				k := ast.IntNumberTerm(i)
 				err := e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
-				})
+				}, e.rterm.Loc())
 				if err != nil {
 					return err
 				}
@@ -2126,7 +2126,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 			err := doc.Iter(func(k, _ *ast.Term) error {
 				return e.e.biunify(k, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, k)
-				})
+				}, e.rterm.Loc())
 			})
 			if err != nil {
 				return err
@@ -2135,7 +2135,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 			err := doc.Iter(func(elem *ast.Term) error {
 				return e.e.biunify(elem, e.ref[e.pos], e.bindings, e.bindings, func() error {
 					return e.next(iter, elem)
-				})
+				}, e.rterm.Loc())
 			})
 			if err != nil {
 				return err
@@ -2151,7 +2151,7 @@ func (e evalTree) enumerate(iter unifyIterator) error {
 		key := ast.NewTerm(k)
 		if err := e.e.biunify(key, e.ref[e.pos], e.bindings, e.bindings, func() error {
 			return e.next(iter, key)
-		}); err != nil {
+		}, e.rterm.Loc()); err != nil {
 			return err
 		}
 	}
@@ -2254,7 +2254,7 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 	// Partial evaluation of ordered rules is not supported currently. Save the
 	// expression and continue. This could be revisited in the future.
 	if len(ir.Else) > 0 && e.e.unknown(e.ref, e.bindings) {
-		return e.e.saveUnify(ast.NewTerm(e.ref), e.rterm, e.bindings, e.rbindings, iter)
+		return e.e.saveUnify(ast.NewTerm(e.ref), e.rterm, e.bindings, e.rbindings, iter, e.rterm.Loc())
 	}
 
 	switch ir.Kind {
