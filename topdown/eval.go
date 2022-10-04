@@ -354,7 +354,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 				err := iter(e)
 				e.traceRedo(expr)
 				return err
-			})
+			}, expr.Location)
 		default:
 			err = e.evalCall(terms, func() error {
 				defined = true
@@ -378,7 +378,7 @@ func (e *eval) evalStep(iter evalIterator) error {
 				return err
 			}
 			return nil
-		})
+		}, expr.Location)
 	case *ast.Every:
 		eval := evalEvery{
 			e:    e,
@@ -819,7 +819,7 @@ func (e *eval) evalCall(terms []*ast.Term, iter unifyIterator) error {
 func (e *eval) evalCallValue(arity int, terms []*ast.Term, mock *ast.Term, iter unifyIterator) error {
 	switch {
 	case len(terms) == arity+2: // captured var
-		return e.unify(terms[len(terms)-1], mock, iter)
+		return e.unify(terms[len(terms)-1], mock, iter, terms[0].Location)
 
 	case len(terms) == arity+1:
 		if mock.Value.Compare(ast.Boolean(false)) != 0 {
@@ -830,76 +830,76 @@ func (e *eval) evalCallValue(arity int, terms []*ast.Term, mock *ast.Term, iter 
 	panic("unreachable")
 }
 
-func (e *eval) unify(a, b *ast.Term, iter unifyIterator) error {
-	return e.biunify(a, b, e.bindings, e.bindings, iter)
+func (e *eval) unify(a, b *ast.Term, iter unifyIterator, loc *ast.Location) error {
+	return e.biunify(a, b, e.bindings, e.bindings, iter, loc)
 }
 
-func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) biunify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator, loc *ast.Location) error {
 	a, b1 = b1.apply(a)
 	b, b2 = b2.apply(b)
 	if e.traceEnabled {
-		e.traceEvent(UnifyOp, ast.Equality.Expr(a, b), "", nil)
+		e.traceEvent(UnifyOp, ast.Equality.Expr(a, b).SetLocation(loc), "", nil)
 	}
 	switch vA := a.Value.(type) {
 	case ast.Var, ast.Ref, *ast.ArrayComprehension, *ast.SetComprehension, *ast.ObjectComprehension:
-		return e.biunifyValues(a, b, b1, b2, iter)
+		return e.biunifyValues(a, b, b1, b2, iter, loc)
 	case ast.Null:
 		switch b.Value.(type) {
 		case ast.Var, ast.Null, ast.Ref:
-			return e.biunifyValues(a, b, b1, b2, iter)
+			return e.biunifyValues(a, b, b1, b2, iter, loc)
 		}
 	case ast.Boolean:
 		switch b.Value.(type) {
 		case ast.Var, ast.Boolean, ast.Ref:
-			return e.biunifyValues(a, b, b1, b2, iter)
+			return e.biunifyValues(a, b, b1, b2, iter, loc)
 		}
 	case ast.Number:
 		switch b.Value.(type) {
 		case ast.Var, ast.Number, ast.Ref:
-			return e.biunifyValues(a, b, b1, b2, iter)
+			return e.biunifyValues(a, b, b1, b2, iter, loc)
 		}
 	case ast.String:
 		switch b.Value.(type) {
 		case ast.Var, ast.String, ast.Ref:
-			return e.biunifyValues(a, b, b1, b2, iter)
+			return e.biunifyValues(a, b, b1, b2, iter, loc)
 		}
 	case *ast.Array:
 		switch vB := b.Value.(type) {
 		case ast.Var, ast.Ref, *ast.ArrayComprehension:
-			return e.biunifyValues(a, b, b1, b2, iter)
+			return e.biunifyValues(a, b, b1, b2, iter, loc)
 		case *ast.Array:
-			return e.biunifyArrays(vA, vB, b1, b2, iter)
+			return e.biunifyArrays(vA, vB, b1, b2, iter, loc)
 		}
 	case ast.Object:
 		switch vB := b.Value.(type) {
 		case ast.Var, ast.Ref, *ast.ObjectComprehension:
-			return e.biunifyValues(a, b, b1, b2, iter)
+			return e.biunifyValues(a, b, b1, b2, iter, loc)
 		case ast.Object:
-			return e.biunifyObjects(vA, vB, b1, b2, iter)
+			return e.biunifyObjects(vA, vB, b1, b2, iter, loc)
 		}
 	case ast.Set:
-		return e.biunifyValues(a, b, b1, b2, iter)
+		return e.biunifyValues(a, b, b1, b2, iter, loc)
 	}
 	return nil
 }
 
-func (e *eval) biunifyArrays(a, b *ast.Array, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) biunifyArrays(a, b *ast.Array, b1, b2 *bindings, iter unifyIterator, loc *ast.Location) error {
 	if a.Len() != b.Len() {
 		return nil
 	}
-	return e.biunifyArraysRec(a, b, b1, b2, iter, 0)
+	return e.biunifyArraysRec(a, b, b1, b2, iter, 0, loc)
 }
 
-func (e *eval) biunifyArraysRec(a, b *ast.Array, b1, b2 *bindings, iter unifyIterator, idx int) error {
+func (e *eval) biunifyArraysRec(a, b *ast.Array, b1, b2 *bindings, iter unifyIterator, idx int, loc *ast.Location) error {
 	if idx == a.Len() {
 		return iter()
 	}
 	return e.biunify(a.Elem(idx), b.Elem(idx), b1, b2, func() error {
-		return e.biunifyArraysRec(a, b, b1, b2, iter, idx+1)
-	})
+		return e.biunifyArraysRec(a, b, b1, b2, iter, idx+1, loc)
+	}, loc)
 }
 
-func (e *eval) biunifyObjects(a, b ast.Object, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) biunifyObjects(a, b ast.Object, b1, b2 *bindings, iter unifyIterator, loc *ast.Location) error {
 	if a.Len() != b.Len() {
 		return nil
 	}
@@ -915,10 +915,10 @@ func (e *eval) biunifyObjects(a, b ast.Object, b1, b2 *bindings, iter unifyItera
 		b = plugKeys(b, b2)
 	}
 
-	return e.biunifyObjectsRec(a, b, b1, b2, iter, a, a.KeysIterator())
+	return e.biunifyObjectsRec(a, b, b1, b2, iter, a, a.KeysIterator(), loc)
 }
 
-func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIterator, keys ast.Object, oki ast.ObjectKeysIterator) error {
+func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIterator, keys ast.Object, oki ast.ObjectKeysIterator, loc *ast.Location) error {
 	key, more := oki.Next() // Get next key from iterator.
 	if !more {
 		return iter()
@@ -928,11 +928,11 @@ func (e *eval) biunifyObjectsRec(a, b ast.Object, b1, b2 *bindings, iter unifyIt
 		return nil
 	}
 	return e.biunify(a.Get(key), v2, b1, b2, func() error {
-		return e.biunifyObjectsRec(a, b, b1, b2, iter, keys, oki)
-	})
+		return e.biunifyObjectsRec(a, b, b1, b2, iter, keys, oki, loc)
+	}, loc)
 }
 
-func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator, loc *ast.Location) error {
 	// Try to evaluate refs and comprehensions. If partial evaluation is
 	// enabled, then skip evaluation (and save the expression) if the term is
 	// in the save set. Currently, comprehensions are not evaluated during
@@ -963,13 +963,13 @@ func (e *eval) biunifyValues(a, b *ast.Term, b1, b2 *bindings, iter unifyIterato
 	}
 
 	if saveA || saveB {
-		return e.saveUnify(a, b, b1, b2, iter)
+		return e.saveUnify(a, b, b1, b2, iter, loc)
 	}
 
 	if ast.IsComprehension(a.Value) {
-		return e.biunifyComprehension(a, b, b1, b2, false, iter)
+		return e.biunifyComprehension(a, b, b1, b2, false, iter, loc)
 	} else if ast.IsComprehension(b.Value) {
-		return e.biunifyComprehension(b, a, b2, b1, true, iter)
+		return e.biunifyComprehension(b, a, b2, b1, true, iter, loc)
 	}
 
 	// Perform standard unification.
@@ -1064,10 +1064,10 @@ func (e *eval) biunifyRef(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) 
 	return eval.eval(iter)
 }
 
-func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {
+func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator, loc *ast.Location) error {
 
 	if e.unknown(a, b1) {
-		return e.biunifyComprehensionPartial(a, b, b1, b2, swap, iter)
+		return e.biunifyComprehensionPartial(a, b, b1, b2, swap, iter, loc)
 	}
 
 	value, err := e.buildComprehensionCache(a)
@@ -1075,18 +1075,18 @@ func (e *eval) biunifyComprehension(a, b *ast.Term, b1, b2 *bindings, swap bool,
 	if err != nil {
 		return err
 	} else if value != nil {
-		return e.biunify(value, b, b1, b2, iter)
+		return e.biunify(value, b, b1, b2, iter, loc)
 	} else {
 		e.instr.counterIncr(evalOpComprehensionCacheMiss)
 	}
 
 	switch a := a.Value.(type) {
 	case *ast.ArrayComprehension:
-		return e.biunifyComprehensionArray(a, b, b1, b2, iter)
+		return e.biunifyComprehensionArray(a, b, b1, b2, iter, loc)
 	case *ast.SetComprehension:
-		return e.biunifyComprehensionSet(a, b, b1, b2, iter)
+		return e.biunifyComprehensionSet(a, b, b1, b2, iter, loc)
 	case *ast.ObjectComprehension:
-		return e.biunifyComprehensionObject(a, b, b1, b2, iter)
+		return e.biunifyComprehensionObject(a, b, b1, b2, iter, loc)
 	}
 
 	return internalErr(e.query[e.index].Location, "illegal comprehension type")
@@ -1191,15 +1191,15 @@ func (e *eval) buildComprehensionCacheObject(x *ast.ObjectComprehension, keys []
 	})
 }
 
-func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator) error {
+func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swap bool, iter unifyIterator, loc *ast.Location) error {
 	var err error
-	cpyA, err := e.amendComprehension(a, b1)
+	cpyA, err := e.amendComprehension(a, b1, loc)
 	if err != nil {
 		return err
 	}
 
 	if ast.IsComprehension(b.Value) {
-		b, err = e.amendComprehension(b, b2)
+		b, err = e.amendComprehension(b, b2, loc)
 		if err != nil {
 			return err
 		}
@@ -1209,15 +1209,15 @@ func (e *eval) biunifyComprehensionPartial(a, b *ast.Term, b1, b2 *bindings, swa
 	// bindings for the comprehension term are saved (for compatibility) but
 	// the eventual plug operation on the comprehension will be a no-op.
 	if !swap {
-		return e.saveUnify(cpyA, b, b1, b2, iter)
+		return e.saveUnify(cpyA, b, b1, b2, iter, loc)
 	}
 
-	return e.saveUnify(b, cpyA, b2, b1, iter)
+	return e.saveUnify(b, cpyA, b2, b1, iter, loc)
 }
 
 // amendComprehension captures bindings available to the comprehension,
 // and used within its term or body.
-func (e *eval) amendComprehension(a *ast.Term, b1 *bindings) (*ast.Term, error) {
+func (e *eval) amendComprehension(a *ast.Term, b1 *bindings, loc *ast.Location) (*ast.Term, error) {
 	cpyA := a.Copy()
 
 	// Namespace the variables in the body to avoid collision when the final
@@ -1238,7 +1238,7 @@ func (e *eval) amendComprehension(a *ast.Term, b1 *bindings) (*ast.Term, error) 
 	vars := a.Vars()
 	err := b1.Iter(e.caller.bindings, func(k, v *ast.Term) error {
 		if vars.Contains(k.Value.(ast.Var)) {
-			body.Append(ast.Equality.Expr(k, v))
+			body.Append(ast.Equality.Expr(k, v).SetLocation(loc))
 		}
 		return nil
 	})
@@ -1250,7 +1250,7 @@ func (e *eval) amendComprehension(a *ast.Term, b1 *bindings) (*ast.Term, error) 
 	return cpyA, nil
 }
 
-func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator, loc *ast.Location) error {
 	result := ast.NewArray()
 	child := e.closure(x.Body)
 	err := child.Run(func(child *eval) error {
@@ -1260,10 +1260,10 @@ func (e *eval) biunifyComprehensionArray(x *ast.ArrayComprehension, b *ast.Term,
 	if err != nil {
 		return err
 	}
-	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
+	return e.biunify(ast.NewTerm(result), b, b1, b2, iter, loc)
 }
 
-func (e *eval) biunifyComprehensionSet(x *ast.SetComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) biunifyComprehensionSet(x *ast.SetComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator, loc *ast.Location) error {
 	result := ast.NewSet()
 	child := e.closure(x.Body)
 	err := child.Run(func(child *eval) error {
@@ -1273,10 +1273,10 @@ func (e *eval) biunifyComprehensionSet(x *ast.SetComprehension, b *ast.Term, b1,
 	if err != nil {
 		return err
 	}
-	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
+	return e.biunify(ast.NewTerm(result), b, b1, b2, iter, loc)
 }
 
-func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Term, b1, b2 *bindings, iter unifyIterator, loc *ast.Location) error {
 	result := ast.NewObject()
 	child := e.closure(x.Body)
 	err := child.Run(func(child *eval) error {
@@ -1292,7 +1292,7 @@ func (e *eval) biunifyComprehensionObject(x *ast.ObjectComprehension, b *ast.Ter
 	if err != nil {
 		return err
 	}
-	return e.biunify(ast.NewTerm(result), b, b1, b2, iter)
+	return e.biunify(ast.NewTerm(result), b, b1, b2, iter, loc)
 }
 
 func (e *eval) saveExpr(expr *ast.Expr, b *bindings, iter unifyIterator) error {
@@ -1327,9 +1327,9 @@ func (e *eval) saveExprMarkUnknowns(expr *ast.Expr, b *bindings, iter unifyItera
 	return err
 }
 
-func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator) error {
+func (e *eval) saveUnify(a, b *ast.Term, b1, b2 *bindings, iter unifyIterator, loc *ast.Location) error {
 	e.instr.startTimer(partialOpSaveUnify)
-	expr := ast.Equality.Expr(a, b)
+	expr := ast.Equality.Expr(a, b).SetLocation(loc)
 	e.updateFromQuery(expr)
 	pops := 0
 	if pairs := getSavePairsFromTerm(a, b1, nil); len(pairs) > 0 {
@@ -1719,7 +1719,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 					err = iter()
 				} // else: nothing to do, don't iter()
 			default:
-				err = e.e.unify(e.terms[endIndex], ast.NewTerm(v), iter)
+				err = e.e.unify(e.terms[endIndex], ast.NewTerm(v), iter, e.bctx.Location)
 			}
 
 			if err != nil {
@@ -1749,7 +1749,7 @@ func (e evalBuiltin) eval(iter unifyIterator) error {
 				err = iter()
 			} // else: nothing to do, don't iter()
 		default:
-			err = e.e.unify(e.terms[endIndex], output, iter)
+			err = e.e.unify(e.terms[endIndex], output, iter, e.bctx.Location)
 		}
 
 		// If the NDBCache is present, we can assume this builtin
@@ -1878,7 +1878,7 @@ func (e evalFunc) evalCache(argCount int, iter unifyIterator) (ast.Ref, bool, er
 			return nil, true, iter()
 		}
 		// f(x, y), y captured output value
-		return nil, true, e.e.unify(e.terms[len(e.terms)-1] /* y */, cached, iter)
+		return nil, true, e.e.unify(e.terms[len(e.terms)-1] /* y */, cached, iter, cached.Location)
 	}
 	e.e.instr.counterIncr(evalOpVirtualCacheMiss)
 	return cacheKey, false, nil
@@ -1949,7 +1949,7 @@ func (e evalFunc) evalOneRule(iter unifyIterator, rule *ast.Rule, cacheKey ast.R
 			child.traceRedo(rule)
 			return nil
 		})
-	})
+	}, rule.Loc())
 
 	return result, err
 }
@@ -2057,7 +2057,7 @@ func (e evalTree) finish(iter unifyIterator) error {
 	save := e.e.unknown(e.plugged, e.e.bindings)
 
 	if save {
-		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
+		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter, e.rterm.Loc())
 	}
 
 	v, err := e.extent()
@@ -2065,7 +2065,7 @@ func (e evalTree) finish(iter unifyIterator) error {
 		return err
 	}
 
-	return e.e.biunify(e.rterm, v, e.rbindings, e.bindings, iter)
+	return e.e.biunify(e.rterm, v, e.rbindings, e.bindings, iter, e.rterm.Loc())
 }
 
 func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
@@ -2102,7 +2102,7 @@ func (e evalTree) next(iter unifyIterator, plugged *ast.Term) error {
 func (e evalTree) enumerate(iter unifyIterator) error {
 
 	if e.e.inliningControl.Disabled(e.plugged[:e.pos], true) {
-		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter)
+		return e.e.saveUnify(ast.NewTerm(e.plugged), e.rterm, e.bindings, e.rbindings, iter, e.rterm.Loc())
 	}
 
 	doc, err := e.e.Resolve(e.plugged[:e.pos])
