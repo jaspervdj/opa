@@ -1284,6 +1284,6 @@ query:1     | Redo data.test.p
 
 	var buf bytes.Buffer
 	prettyOpts := PrettyTraceOpts{Location: true, UnifyOps: true}
-	PrettyTraceWith(prettyOpts, &buf, *tracer)
+	PrettyTraceWith(&buf, *tracer, prettyOpts)
 	compareBuffers(t, expected, buf.String())
 }
